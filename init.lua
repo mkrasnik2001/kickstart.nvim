@@ -1,3 +1,5 @@
+vim.opt.termguicolors = true
+vim.o.autoread = true
 --[[
 
 =====================================================================
@@ -102,7 +104,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -133,7 +135,7 @@ vim.o.signcolumn = 'yes'
 vim.o.updatetime = 250
 
 -- Decrease mapped sequence wait time
-vim.o.timeoutlen = 300
+vim.o.timeoutlen = 150
 
 -- Configure how new splits should be opened
 vim.o.splitright = true
@@ -180,7 +182,7 @@ vim.diagnostic.config {
   underline = { severity = vim.diagnostic.severity.ERROR },
 
   -- Can switch between these as you prefer
-  virtual_text = true, -- Text shows up at the end of the line
+  virtual_text = true,   -- Text shows up at the end of the line
   virtual_lines = false, -- Teest shows up underneath the line, with virtual lines
 
   -- Auto open the float, so you can easily read the errors when jumping with `[d` and `]d`
@@ -188,6 +190,20 @@ vim.diagnostic.config {
 }
 
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<C-w>d', function()
+  vim.diagnostic.open_float { focus = false }
+  -- Find and focus the floating window
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local config = vim.api.nvim_win_get_config(win)
+    if config.relative ~= '' then
+      vim.api.nvim_set_current_win(win)
+      return
+    end
+  end
+end, { desc = 'Open diagnostic float (focused)' })
+
+-- project view remapping :Explore / :Ex to leader pv
+vim.keymap.set('n', '<leader>pv', vim.cmd.Ex, { desc = '[P]roject [V]iew' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -196,6 +212,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.keymap.set('t', 'jj', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
@@ -255,6 +272,7 @@ rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  { import = 'custom.plugins' },
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
   { 'NMAC427/guess-indent.nvim', opts = {} },
 
@@ -310,9 +328,10 @@ require('lazy').setup({
 
       -- Document existing key chains
       spec = {
-        { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
+        { '<leader>s', group = '[S]earch',   mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>m', group = '[M]arkdown' },
       },
     },
   },
@@ -353,7 +372,7 @@ require('lazy').setup({
       { 'nvim-telescope/telescope-ui-select.nvim' },
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
-      { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+      { 'nvim-tree/nvim-web-devicons',            enabled = vim.g.have_nerd_font },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -381,12 +400,11 @@ require('lazy').setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
+        --defaults = {
         --   mappings = {
         --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
         --   },
         -- },
-        -- pickers = {}
         extensions = {
           ['ui-select'] = { require('telescope.themes').get_dropdown() },
         },
@@ -400,14 +418,46 @@ require('lazy').setup({
       local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sf', function() builtin.find_files { hidden = true } end,
+        { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>gf', function() builtin.git_files { previewer = false } end,
+        { desc = 'Search [G]it [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set({ 'n', 'v' }, '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sG', function()
+        local dir = vim.fn.input('Directory: ', '', 'dir')
+        if dir ~= '' then builtin.live_grep { cwd = dir } end
+      end, { desc = '[S]earch by [G]rep in directory' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = '[S]earch [C]ommands' })
+      vim.keymap.set(
+        'n',
+        '<leader>se',
+        function()
+          builtin.find_files {
+            find_command = {
+              'rg',
+              '--files',
+              '--hidden',
+              '--no-ignore',
+              '--glob',
+              '**/.env*',
+              '--glob',
+              '!node_modules',
+              '--glob',
+              '!.git',
+              '--glob',
+              '!*venv*',
+              '--glob',
+              '!__pycache__',
+            },
+          }
+        end,
+        { desc = '[S]earch [E]nv files' }
+      )
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
       -- This runs on LSP attach per buffer (see main LSP attach function in 'neovim/nvim-lspconfig' config for more info,
@@ -435,7 +485,8 @@ require('lazy').setup({
 
           -- Fuzzy find all the symbols in your current workspace.
           -- Similar to document symbols, except searches over your entire project.
-          vim.keymap.set('n', 'gW', builtin.lsp_dynamic_workspace_symbols, { buffer = buf, desc = 'Open Workspace Symbols' })
+          vim.keymap.set('n', 'gW', builtin.lsp_dynamic_workspace_symbols,
+            { buffer = buf, desc = 'Open Workspace Symbols' })
 
           -- Jump to the type of the word under your cursor.
           -- Useful when you're not sure what type a variable is and you want to see
@@ -468,7 +519,8 @@ require('lazy').setup({
       )
 
       -- Shortcut for searching your Neovim configuration files
-      vim.keymap.set('n', '<leader>sn', function() builtin.find_files { cwd = vim.fn.stdpath 'config' } end, { desc = '[S]earch [N]eovim files' })
+      vim.keymap.set('n', '<leader>sn', function() builtin.find_files { cwd = vim.fn.stdpath 'config' } end,
+        { desc = '[S]earch [N]eovim files' })
     end,
   },
 
@@ -484,7 +536,7 @@ require('lazy').setup({
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
       -- Useful status updates for LSP.
-      { 'j-hui/fidget.nvim', opts = {} },
+      { 'j-hui/fidget.nvim',    opts = {} },
 
       -- Allows extra capabilities provided by blink.cmp
       'saghen/blink.cmp',
@@ -578,7 +630,9 @@ require('lazy').setup({
           --
           -- This may be unwanted, since they displace some of your code
           if client and client:supports_method('textDocument/inlayHint', event.buf) then
-            map('<leader>th', function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf }) end, '[T]oggle Inlay [H]ints')
+            map('<leader>th',
+              function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf }) end,
+              '[T]oggle Inlay [H]ints')
           end
         end,
       })
@@ -593,16 +647,58 @@ require('lazy').setup({
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --  See `:help lsp-config` for information about keys and how to configure
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
         -- pyright = {},
-        -- rust_analyzer = {},
+        rust_analyzer = {
+          settings = {
+            ['rust-analyzer'] = {
+              checkOnSave = true,
+              check = { command = 'clippy' },
+              cargo = { allFeatures = true },
+            },
+          },
+        },
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {},
+        pylsp = {
+          on_init = function(client)
+            local cwd = vim.fn.getcwd()
+            local root = client.workspace_folders and client.workspace_folders[1] and client.workspace_folders[1].name or
+            cwd
+            local search_dirs = { root, vim.fn.fnamemodify(root, ':h'), cwd, vim.fn.fnamemodify(cwd, ':h') }
+            for _, dir in ipairs(search_dirs) do
+              for _, name in ipairs { 'venv', '.venv', 'nest_venv', 'live_venv' } do
+                local p = dir .. '/' .. name .. '/bin/python'
+                if vim.fn.executable(p) == 1 then
+                  client.config.settings = vim.tbl_deep_extend('force', client.config.settings, {
+                    pylsp = { plugins = { jedi = { environment = p } } },
+                  })
+                  client:notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+                  return
+                end
+              end
+            end
+          end,
+          settings = {
+            pylsp = {
+              plugins = {
+                pyflakes = { enabled = false },
+                pycodestyle = { enabled = false },
+                autopep8 = { enabled = false },
+                yapf = { enabled = false },
+                mccabe = { enabled = false },
+                pylsp_mypy = { enabled = false },
+                pylsp_black = { enabled = false },
+                pylsp_isort = { enabled = false },
+              },
+            },
+          },
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -612,10 +708,11 @@ require('lazy').setup({
       --    :Mason
       --
       -- You can press `g?` for help in this menu.
-      local ensure_installed = vim.tbl_keys(servers or {})
+      local ensure_installed = vim.tbl_filter(function(name) return name ~= 'pylsp' end, vim.tbl_keys(servers or {}))
       vim.list_extend(ensure_installed, {
-        'lua_ls', -- Lua Language server
-        'stylua', -- Used to format Lua code
+        'lua-language-server', -- Lua Language server
+        'stylua',              -- Used to format Lua code
+        'python-lsp-server',   -- Python LSP (Mason name for pylsp)
         -- You can add other tools here that you want Mason to install
       })
 
@@ -751,6 +848,7 @@ require('lazy').setup({
         --
         -- See :h blink-cmp-config-keymap for defining your own keymap
         preset = 'default',
+        ['<C-CR>'] = { 'accept', 'fallback' },
 
         -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
         --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -788,25 +886,102 @@ require('lazy').setup({
     },
   },
 
-  { -- You can easily change to a different colorscheme.
-    -- Change the name of the colorscheme plugin below, and then
-    -- change the command in the config to whatever the name of that colorscheme is.
-    --
-    -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
-    priority = 1000, -- Make sure to load this before all the other start plugins.
+  {
+    'EdenEast/nightfox.nvim',
+    lazy = false,
+    priority = 1000,
     config = function()
-      ---@diagnostic disable-next-line: missing-fields
-      require('tokyonight').setup {
-        styles = {
-          comments = { italic = false }, -- Disable italics in comments
+      require('nightfox').setup {
+        options = {
+          transparent = true,
+          styles = {
+            comments = 'italic',
+            keywords = 'NONE',
+            types = 'NONE',
+            functions = 'NONE',
+          },
         },
       }
+      vim.cmd.colorscheme 'carbonfox'
+      -- Brighten keywords (fn / pub / let / mut / use / impl / etc.) and types (struct / enum / trait names)
+      local function carbonfox_tweaks()
+        local set = vim.api.nvim_set_hl
+        local purple = '#d4bbff' -- brighter than carbonfox magenta
+        local green = '#42be65'  -- brighter, more saturated than carbonfox green
 
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+        for _, g in ipairs {
+          'Keyword',
+          'Statement',
+          'Conditional',
+          'Repeat',
+          'Include',
+          'StorageClass',
+          'Structure',
+          '@keyword',
+          '@keyword.import',
+          '@keyword.storage',
+          '@keyword.return',
+          '@keyword.repeat',
+          '@keyword.conditional',
+          '@keyword.operator',
+          '@keyword.type',
+          '@keyword.coroutine',
+        } do
+          set(0, g, { fg = purple })
+        end
+
+        -- fn / pub / mut / unsafe / async — make function decls pop against the name
+        local pink = '#ee5396'
+        for _, g in ipairs {
+          '@keyword.function',
+          '@keyword.modifier',
+          '@lsp.mod.declaration',
+        } do
+          set(0, g, { fg = pink, bold = true })
+        end
+
+        for _, g in ipairs {
+          'Type',
+          'Typedef',
+          '@type',
+          '@type.builtin',
+          '@type.definition',
+          '@lsp.type.struct',
+          '@lsp.type.enum',
+          '@lsp.type.interface',
+          '@lsp.type.typeAlias',
+          '@lsp.type.class',
+          '@lsp.type.type',
+        } do
+          set(0, g, { fg = green })
+        end
+
+        -- Strings: bright orange so they don't blend with green types/modules
+        local string_color = '#ff832b'
+        for _, g in ipairs {
+          'String',
+          'Character',
+          '@string',
+          '@string.regex',
+          '@string.escape',
+          '@string.special',
+          '@string.documentation',
+          '@character',
+          '@character.special',
+          '@lsp.type.string',
+        } do
+          set(0, g, { fg = string_color })
+        end
+
+        -- mini.statusline NORMAL mode block — green to match types/variables
+        set(0, 'MiniStatuslineModeNormal', { fg = '#161616', bg = green, bold = true })
+      end
+
+      vim.api.nvim_create_autocmd('ColorScheme', {
+        pattern = 'carbonfox',
+        callback = carbonfox_tweaks,
+      })
+      carbonfox_tweaks()
     end,
   },
 
@@ -836,11 +1011,50 @@ require('lazy').setup({
       --  and try some other statusline plugin
       local statusline = require 'mini.statusline'
       -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
+      statusline.setup {
+        use_icons = vim.g.have_nerd_font,
+        content = {
+          active = function()
+            local mode, mode_hl = MiniStatusline.section_mode { trunc_width = 120 }
+            local git = MiniStatusline.section_git { trunc_width = 40 }
+            local diff = MiniStatusline.section_diff { trunc_width = 75 }
+            local diagnostics = MiniStatusline.section_diagnostics { trunc_width = 75 }
+            local filename = MiniStatusline.section_filename { trunc_width = 140 }
+            local searchcount = MiniStatusline.section_searchcount { trunc_width = 75 }
+            local location = '%2l:%-2v'
 
-      -- You can configure sections in the statusline by overriding their
-      -- default behavior. For example, here we set the section for
-      -- cursor location to LINE:COLUMN
+            -- Harpoon section
+            local harpoon_status = ''
+            local ok, harpoon = pcall(require, 'harpoon')
+            if ok then
+              local list = harpoon:list()
+              local current = vim.fn.expand '%:p'
+              local parts = {}
+              for i, item in ipairs(list.items) do
+                local name = vim.fn.fnamemodify(item.value, ':t')
+                if vim.fn.fnamemodify(item.value, ':p') == current or item.value == vim.fn.expand '%:.' then
+                  table.insert(parts, '[' .. i .. ':' .. name .. ']')
+                else
+                  table.insert(parts, ' ' .. i .. ':' .. name .. ' ')
+                end
+              end
+              harpoon_status = table.concat(parts, '')
+            end
+
+            return MiniStatusline.combine_groups {
+              { hl = mode_hl,                 strings = { mode } },
+              { hl = 'MiniStatuslineDevinfo', strings = { git, diff, diagnostics } },
+              '%<',
+              { hl = 'MiniStatuslineFilename', strings = { filename } },
+              '%=',
+              { hl = 'MiniStatuslineFilename', strings = { harpoon_status } },
+              { hl = 'MiniStatuslineFileinfo', strings = { searchcount } },
+              { hl = mode_hl,                  strings = { location } },
+            }
+          end,
+        },
+      }
+
       ---@diagnostic disable-next-line: duplicate-set-field
       statusline.section_location = function() return '%2l:%-2v' end
 
@@ -852,13 +1066,19 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local filetypes =
+      { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'cpp',
+        'python', 'rust', 'toml' }
       require('nvim-treesitter').install(filetypes)
       vim.api.nvim_create_autocmd('FileType', {
         pattern = filetypes,
         callback = function() vim.treesitter.start() end,
       })
     end,
+  },
+  {
+    'nvim-treesitter/nvim-treesitter-context',
+    opts = {},
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
@@ -870,11 +1090,11 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
@@ -910,4 +1130,6 @@ require('lazy').setup({
 })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
+-- vim: ts=2 sts=2 sw=2 et
+-- vim: ts=2 sts=2 sw=2 et
 -- vim: ts=2 sts=2 sw=2 et
