@@ -23,6 +23,7 @@ return {
 
     -- Add your own debuggers here
     'leoluz/nvim-dap-go',
+    'mfussenegger/nvim-dap-python',
   },
   keys = {
     -- Basic debugging keymaps, feel free to change to your liking!
@@ -32,22 +33,22 @@ return {
       desc = 'Debug: Start/Continue',
     },
     {
-      '<F1>',
+      '<F11>',
       function() require('dap').step_into() end,
       desc = 'Debug: Step Into',
     },
     {
-      '<F2>',
+      '<F10>',
       function() require('dap').step_over() end,
       desc = 'Debug: Step Over',
     },
     {
-      '<F3>',
+      '<F12>',
       function() require('dap').step_out() end,
       desc = 'Debug: Step Out',
     },
     {
-      '<leader>b',
+      '<F9>',
       function() require('dap').toggle_breakpoint() end,
       desc = 'Debug: Toggle Breakpoint',
     },
@@ -55,6 +56,14 @@ return {
       '<leader>B',
       function() require('dap').set_breakpoint(vim.fn.input 'Breakpoint condition: ') end,
       desc = 'Debug: Set Breakpoint',
+    },
+    {
+      '<leader>bl',
+      function()
+        require('dap').list_breakpoints()
+        vim.cmd 'copen'
+      end,
+      desc = 'Debug: List Breakpoints',
     },
     -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
     {
@@ -81,6 +90,7 @@ return {
       ensure_installed = {
         -- Update this to ensure that you have the debuggers for the langs you want
         'delve',
+        'python',
       },
     }
 
@@ -102,6 +112,26 @@ return {
           run_last = '▶▶',
           terminate = '⏹',
           disconnect = '⏏',
+        },
+      },
+      layouts = {
+        {
+          elements = {
+            { id = 'scopes', size = 0.25 },
+            { id = 'breakpoints', size = 0.25 },
+            { id = 'stacks', size = 0.25 },
+            { id = 'watches', size = 0.25 },
+          },
+          size = 40,
+          position = 'left',
+        },
+        {
+          elements = {
+            { id = 'repl', size = 0.5 },
+            { id = 'console', size = 0.5 },
+          },
+          size = 0.40,
+          position = 'bottom',
         },
       },
     }
@@ -130,5 +160,24 @@ return {
         detached = vim.fn.has 'win32' == 0,
       },
     }
+    local dap_python = require('dap-python')
+    -- Find project venv (has debugpy + pytest + project deps), fall back to Mason's debugpy
+    local function find_python()
+      for _, name in ipairs { 'venv', '.venv', 'live_venv' } do
+        local p = vim.fn.getcwd() .. '/' .. name .. '/bin/python'
+        if vim.fn.executable(p) == 1 then return p end
+      end
+      return vim.fn.stdpath 'data' .. '/mason/packages/debugpy/venv/bin/python'
+    end
+    dap_python.setup(find_python())
+    dap_python.test_runner = 'pytest'
+
+    -- Alias "debugpy" to "python" so .vscode/launch.json configs with type "debugpy" work
+    dap.adapters.debugpy = dap.adapters.python
+
+    -- Debug nearest test method with <leader>dm
+    vim.keymap.set('n', '<leader>dm', function() dap_python.test_method() end, { desc = 'Debug: Test [M]ethod' })
+    -- Debug test class with <leader>dc
+    vim.keymap.set('n', '<leader>dc', function() dap_python.test_class() end, { desc = 'Debug: Test [C]lass' })
   end,
 }
