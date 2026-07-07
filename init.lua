@@ -202,8 +202,19 @@ vim.keymap.set('n', '<C-w>d', function()
   end
 end, { desc = 'Open diagnostic float (focused)' })
 
--- project view remapping :Explore / :Ex to leader pv
-vim.keymap.set('n', '<leader>pv', vim.cmd.Ex, { desc = '[P]roject [V]iew' })
+-- project view remapping :Explore / :Ex to leader pv (toggle: open netrw, or jump back to your file)
+vim.keymap.set('n', '<leader>pv', function()
+  if vim.bo.filetype == 'netrw' then
+    -- currently in netrw: jump back to the file you came from
+    if vim.fn.bufexists(vim.fn.bufnr '#') == 1 then
+      vim.cmd 'buffer #'
+    else
+      vim.cmd 'bprevious'
+    end
+  else
+    vim.cmd.Ex()
+  end
+end, { desc = '[P]roject [V]iew (toggle)' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
