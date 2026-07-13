@@ -232,13 +232,10 @@ vim.keymap.set('t', 'jj', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 -- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
 -- Keybinds to make split navigation easier.
---  Use CTRL+<hjkl> to switch between windows
---
---  See `:help wincmd` for a list of all window commands
-vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
-vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+--  Use CTRL+<hjkl> to switch between windows.
+--  NOTE: C-hjkl are now owned by the vim-tmux-navigator plugin
+--  (lua/custom/plugins/tmux-navigator.lua), which moves between nvim
+--  splits AND tmux panes seamlessly. See `:help wincmd` for raw window commands.
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -429,17 +426,30 @@ require('lazy').setup({
       local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sf', function() builtin.find_files { hidden = true } end,
-        { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sF', function()
+        builtin.find_files {
+          find_command = {
+            'rg',
+            '--files',
+            '--hidden',
+            '--no-ignore',
+            '--glob', '!**/.git/*',
+            '--glob', '!**/node_modules/*',
+            '--glob', '!**/.venv/*',
+            '--glob', '!**/*venv*/*',
+            '--glob', '!**/__pycache__/*',
+          },
+        }
+      end, { desc = '[S]earch [F]iles (incl. hidden/ignored)' })
       vim.keymap.set('n', '<leader>gf', function() builtin.git_files { previewer = false } end,
         { desc = 'Search [G]it [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set({ 'n', 'v' }, '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sG', function()
-        local dir = vim.fn.input('Directory: ', '', 'dir')
-        if dir ~= '' then builtin.live_grep { cwd = dir } end
-      end, { desc = '[S]earch by [G]rep in directory' })
+        builtin.live_grep { additional_args = { '--hidden', '--no-ignore', '--glob', '!.git/' } }
+      end, { desc = '[S]earch by [G]rep (incl. hidden/ignored)' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
